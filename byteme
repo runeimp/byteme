@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+###########
+# ByteMe Script
+# Converts values to bytes
+#
+# @author	RuneImp <runeimp@gmail.com>
+# @version	1.0.1
+#
+###
+# Options:
+# --------
+# 
+###
+# Usage:
+# ------
+# $ byteme -m 400
+# 3355443200 Bytes
+# 3,355,443,200.00 Bytes
+# 3.4e+09 Bytes
+
+# $ byteme -P 2.4
+# 2702159776422297.6 Bytes
+# 2,702,159,776,422,297.50 Bytes
+# 2.7e+15 Bytes
+# 
+###
+# ChangeLog:
+# ----------
+#	2014-03-08	v1.0.1	Updated docs
+#	2013-04-08	v1.0.0	Initial script creation
+#
+
+usage()
+{
+cat << EOF
+usage: $0 option value
+
+This script converts a given value to bytes
+
+OPTIONS:
+  -b    Value is in bits
+  -B    Value is in Bytes
+  -g    Value is in Gigabits
+  -G    Value is in GigaBytes
+  -h    Show this message
+  -k    Value is in Kilabits
+  -K    Value is in KilaBytes
+  -m    Value is in Megabits
+  -M    Value is in MegaBytes
+  -p    Value is in Petabits
+  -P    Value is in PetaBytes
+  -t    Value is in Terabits
+  -T    Value is in TeraBytes
+  -?    Show this message
+
+Example:
+    Converting 4.3 TB (TeraBytes) to Bytes
+    byteme -T 4.3
+
+EOF
+}
+
+new_value=
+operator=M
+output=""
+to_bytes= 
+
+while getopts “hb:B:g:G:k:K:m:M:p:P:t:T:?” OPTION
+do
+	case $OPTION in
+		b)
+			operator=D
+			to_bytes=8
+			value=$OPTARG
+			;;
+		B)
+			to_bytes=1
+			value=$OPTARG
+			;;
+		g)
+			let to_bytes=8*1024*1024*1024
+			value=$OPTARG
+			;;
+		G)
+			let to_bytes=1024*1024*1024
+			value=$OPTARG
+			;;
+		h)
+			usage
+			exit 0
+			;;
+		k)
+			let to_bytes=8*1024
+			value=$OPTARG
+			;;
+		K)
+			let to_bytes=1024
+			value=$OPTARG
+			;;
+		m)
+			let to_bytes=8*1024*1024
+			value=$OPTARG
+			;;
+		M)
+			let to_bytes=1024*1024
+			value=$OPTARG
+			;;
+		p)
+			let to_bytes=8*1024*1024*1024*1024*1024
+			value=$OPTARG
+			;;
+		P)
+			let to_bytes=1024*1024*1024*1024*1024
+			value=$OPTARG
+			;;
+		t)
+			let to_bytes=8*1024*1024*1024*1024
+			value=$OPTARG
+			;;
+		T)
+			let to_bytes=1024*1024*1024*1024
+			value="$OPTARG"
+			;;
+		?)
+			usage
+			exit 0
+			;;
+	esac
+done
+
+###
+# Make sure we have at least one argument
+#
+if [[ $# -eq 0 ]];
+then
+	usage
+	exit 0
+fi
+
+
+case $operator in
+	A) # ADD
+		# new_value=$[value + to_bytes]
+		new_value=$(echo "scale=2; $value + $to_bytes" | bc -q 2>/dev/null)
+		;;
+	D) # DIVIDE
+		# new_value=$[value / to_bytes]
+		new_value=$(echo "scale=2; $value / $to_bytes" | bc -q 2>/dev/null)
+		;;
+	M) # MULTIPLY
+		# new_value=$[value * to_bytes]
+		set -f # Dissable wildcard expansion
+		new_value=$(echo "scale=2; $value * $to_bytes" | bc -q 2>/dev/null)
+		set +f # Enable wildcard expansion
+		;;
+	S) # SUBTRACT
+		# new_value=$[value - to_bytes]
+		new_value=$(echo "scale=2; $value - $to_bytes" | bc -q 2>/dev/null)
+		;;
+esac
+
+# decimal=`printf "%'d\n" $new_value`
+float=`printf "%'.2f" $new_value`
+glom=`printf "%'.2g" $new_value`
+
+# new_value=$((value * to_bytes))
+# new_value=$[value * to_bytes]
+# output=$new_value
+
+# echo "operator = $operator"
+# echo "to_bytes = $to_bytes"
+# echo "value = $value"
+# echo "output = $output"
+
+echo "$new_value Bytes"
+# echo "$decimal Bytes"
+echo "$float Bytes"
+echo "$glom Bytes"
+
+exit 0
