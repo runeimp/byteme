@@ -1,7 +1,7 @@
 byteme
 ======
 
-Converts values to bytes
+BASH script to converts values to bytes
 
 Usage
 -----
