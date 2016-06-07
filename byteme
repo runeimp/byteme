@@ -3,12 +3,10 @@
 # ByteMe Script
 # Converts values to bytes
 #
-# @author	RuneImp <runeimp@gmail.com>
-# @version	1.0.1
-#
 ###
 # ChangeLog:
 # ----------
+# 2014-06-06  v2.1.0      Now also outputs a decimal value and has a decimal only option.
 # 2014-06-06  v2.0.0      Now gets number designation from suffix instead of option.
 # 2014-03-08  v1.0.1      Updated docs
 # 2013-04-08  v1.0.0      Initial script creation
@@ -16,7 +14,7 @@
 
 declare -r APP_NAME='ByteMe'
 declare -r APP_FILE='byteme'
-declare -r APP_VERSION='2.0.0'
+declare -r APP_VERSION='2.1.0'
 declare -r APP_AUTHOR_NAME='RuneImp'
 declare -r APP_AUTHOR_MAIL='runeimp@gmail.com'
 declare -r APP_AUTHOR="$APP_AUTHOR_NAME <${APP_AUTHOR_MAIL}>"
@@ -33,6 +31,7 @@ This script converts a given value to bytes
 
 OPTIONS:
   -c | -comma   | --comma-only        Comma formated output only
+  -d | -decimal | --decimal-only      Decimal formated output only
   -n | -num     | --number-only       Unformated output number only
   -s | -science | --scientific-only   Scientific output notation only
   -h | -?                             Show this message
@@ -74,6 +73,7 @@ EOF
 }
 
 declare -i comma_only=1
+declare -i decimal_only=1
 declare -i number_only=1
 declare -i scientific_only=1
 declare -i to_bytes=0
@@ -93,6 +93,9 @@ else
 		case "$1" in
 			-c | -comma | --comma-only)
 				comma_only=0
+				;;
+			-d | -decimal | --decimal-only)
+				decimal_only=0
 				;;
 			-h | -[?])
 				usage
@@ -231,7 +234,7 @@ case $operator in
 		;;
 esac
 
-declare -i decimal=$(printf "%d\n" $new_value 2> /dev/null)
+declare -i decimal_number=$(printf "%d\n" $new_value 2> /dev/null)
 declare raw_number=$(printf "%s\n" $new_value 2> /dev/null | sed '/\./ s/\.\{0,1\}0\{1,\}$//')
 declare comma_formated=$(printf "%'.8f" $new_value | sed -e 's/[0]*$//g')
 declare scientific_number=$(printf "%'.8e" $new_value | sed -e 's/[0]*e/e/g')
@@ -250,13 +253,14 @@ fi
 # echo "value = $value"
 # echo "output = $output"
 
-if [[ $number_only -eq 1 ]] && [[ $comma_only -eq 1 ]] && [[ $scientific_only -eq 1 ]]; then
-	echo "$raw_number Bytes"
-	echo "$comma_formated Bytes"
-	echo "$scientific_number Bytes"
+if [[ $decimal_only -eq 1 ]] && [[ $number_only -eq 1 ]] && [[ $comma_only -eq 1 ]] && [[ $scientific_only -eq 1 ]]; then
+	echo "$decimal_number Decimal Bytes"
+	echo "$raw_number Number Bytes"
+	echo "$comma_formated Formated Bytes"
+	echo "$scientific_number Scientific Notation Bytes"
 fi
 
-# [[ $number_only -eq 0 ]]		&& echo "$new_value Bytes"
+[[ $decimal_only -eq 0 ]]		&& echo "$decimal_number"
 [[ $number_only -eq 0 ]]		&& echo "$raw_number"
 [[ $comma_only -eq 0 ]]			&& echo "$comma_formated"
 [[ $scientific_only -eq 0 ]]	&& echo "$scientific_number"
