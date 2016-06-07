@@ -7,28 +7,22 @@
 # @version	1.0.1
 #
 ###
-# Options:
-# --------
-# 
-###
-# Usage:
-# ------
-# $ byteme -m 400
-# 3355443200 Bytes
-# 3,355,443,200.00 Bytes
-# 3.4e+09 Bytes
-
-# $ byteme -P 2.4
-# 2702159776422297.6 Bytes
-# 2,702,159,776,422,297.50 Bytes
-# 2.7e+15 Bytes
-# 
-###
 # ChangeLog:
 # ----------
-#	2014-03-08	v1.0.1	Updated docs
-#	2013-04-08	v1.0.0	Initial script creation
+# 2014-06-06  v2.0.0      Now gets number designation from suffix instead of option.
+# 2014-03-08  v1.0.1      Updated docs
+# 2013-04-08  v1.0.0      Initial script creation
 #
+
+declare -r APP_NAME='ByteMe'
+declare -r APP_FILE='byteme'
+declare -r APP_VERSION='2.0.0'
+declare -r APP_AUTHOR_NAME='RuneImp'
+declare -r APP_AUTHOR_MAIL='runeimp@gmail.com'
+declare -r APP_AUTHOR="$APP_AUTHOR_NAME <${APP_AUTHOR_MAIL}>"
+declare -r APP_LICENSES="http://opensource.org/licenses/MIT"
+declare -r APP_LABEL="${APP_AUTHOR_NAME}'s $APP_NAME v$APP_VERSION
+License(s): $APP_LICENSES"
 
 usage()
 {
@@ -38,130 +32,214 @@ usage: $0 option value
 This script converts a given value to bytes
 
 OPTIONS:
-  -b    Value is in bits
-  -B    Value is in Bytes
-  -g    Value is in Gigabits
-  -G    Value is in GigaBytes
-  -h    Show this message
-  -k    Value is in Kilabits
-  -K    Value is in KilaBytes
-  -m    Value is in Megabits
-  -M    Value is in MegaBytes
-  -p    Value is in Petabits
-  -P    Value is in PetaBytes
-  -t    Value is in Terabits
-  -T    Value is in TeraBytes
-  -?    Show this message
+  -c | -comma   | --comma-only        Comma formated output only
+  -n | -num     | --number-only       Unformated output number only
+  -s | -science | --scientific-only   Scientific output notation only
+  -h | -?                             Show this message
 
-Example:
-    Converting 4.3 TB (TeraBytes) to Bytes
-    byteme -T 4.3
+NUMBER SUFIX
+  b | bit  | bits  | b...    Value is in bits
+  B | Byte | Bytes | B...    Value is in Bytes
+  k | kb   | kbit  | k...    Value is in Kilabits
+  K | KB   | Kb    | K...    Value is in KilaBytes
+  m | mb   | mbit  | m...    Value is in Megabits
+  M | MB   | Mb    | M...    Value is in MegaBytes
+  g | gb   | gbit  | g...    Value is in Gigabits
+  G | GB   | Gb    | G...    Value is in GigaBytes
+  t | tb   | tbit  | t...    Value is in Terabits
+  T | TB   | Tb    | T...    Value is in TeraBytes
+  p | pb   | pbit  | p...    Value is in Petabits
+  P | PB   | Pb    | P...    Value is in PetaBytes
+  e | eb   | ebit  | e...    Value is in Exabits
+  E | EB   | Eb    | E...    Value is in ExaBytes
+  z | zb   | zbit  | z...    Value is in Zettabits  (currently broken)
+  Z | ZB   | Zb    | Z...    Value is in ZettaBytes (currently broken)
+  y | yb   | ybit  | y...    Value is in Yottabits  (currently broken)
+  Y | YB   | Yb    | Y...    Value is in YottaBytes (currently broken)
+
+Examples:
+    # Converting 600 MB (MegaBytes) to Bytes
+    $ byteme 600M
+    629145600 Bytes
+    629,145,600.00 Bytes
+    6.3e+08 Bytes
+
+    # Converting 4.3 TB (TeraBytes) to Bytes
+    $ byteme 4.3 TB
+    3298534883328 Bytes
+    3,298,534,883,328.00 Bytes
+    3.3e+12 Bytes
 
 EOF
 }
 
-new_value=
-operator=M
-output=""
-to_bytes= 
-
-while getopts “hb:B:g:G:k:K:m:M:p:P:t:T:?” OPTION
-do
-	case $OPTION in
-		b)
-			operator=D
-			to_bytes=8
-			value=$OPTARG
-			;;
-		B)
-			to_bytes=1
-			value=$OPTARG
-			;;
-		g)
-			let to_bytes=8*1024*1024*1024
-			value=$OPTARG
-			;;
-		G)
-			let to_bytes=1024*1024*1024
-			value=$OPTARG
-			;;
-		h)
-			usage
-			exit 0
-			;;
-		k)
-			let to_bytes=8*1024
-			value=$OPTARG
-			;;
-		K)
-			let to_bytes=1024
-			value=$OPTARG
-			;;
-		m)
-			let to_bytes=8*1024*1024
-			value=$OPTARG
-			;;
-		M)
-			let to_bytes=1024*1024
-			value=$OPTARG
-			;;
-		p)
-			let to_bytes=8*1024*1024*1024*1024*1024
-			value=$OPTARG
-			;;
-		P)
-			let to_bytes=1024*1024*1024*1024*1024
-			value=$OPTARG
-			;;
-		t)
-			let to_bytes=8*1024*1024*1024*1024
-			value=$OPTARG
-			;;
-		T)
-			let to_bytes=1024*1024*1024*1024
-			value="$OPTARG"
-			;;
-		?)
-			usage
-			exit 0
-			;;
-	esac
-done
+declare -i comma_only=1
+declare -i number_only=1
+declare -i scientific_only=1
+declare -i to_bytes=0
+declare -r VALUE_RE='([0-9]+\.?[0-9]*) ?([BKMGTPEZbkmgtpez]).*'
+declare new_value=
+declare operator=M
+declare output=""
 
 ###
 # Make sure we have at least one argument
 #
-if [[ $# -eq 0 ]];
-then
+if [[ $# -eq 0 ]]; then
 	usage
 	exit 0
+else
+	until [[ $# -eq 0 ]]; do
+		case "$1" in
+			-c | -comma | --comma-only)
+				comma_only=0
+				;;
+			-h | -[?])
+				usage
+				exit 0
+				;;
+			-n | -num | --number-only)
+				number_only=0
+				;;
+			-s | -science | --scientific-only) # glom
+				scientific_only=0
+				;;
+			-v | -ver | --version)
+				echo "$APP_LABEL"
+				exit 0
+				;;
+			*)
+				if [[ $# -eq 1 ]] || [[ "${2:0:1}" = '-' ]]; then	
+					value="$1"
+				else
+					value="$1$2"
+					shift
+				fi
+				;;
+		esac
+
+		shift
+	done
+
+	# if [[ $# -eq 1 ]]; then	
+	# 	value="$1"
+	# else
+	# 	value="$1$2"
+	# fi
+	if [[ "$value" =~ $VALUE_RE ]]; then
+		number="${BASH_REMATCH[1]}"
+		suffix="${BASH_REMATCH[2]}"
+	fi
+
+	# echo "\$comma_only: $comma_only | \$number_only: $number_only | \$scientific_only: $scientific_only" 1>&2
+	# echo "\$value: $value | \$number: $number | \$suffix: $suffix" 1>&2
+
+	case "$suffix" in
+		b)
+			# Bit
+			operator=D
+			let to_bytes=8					;;
+		B)
+			# Byte
+			let to_bytes=1					;;
+		k)
+			# Kilobit = 8 * 1024
+			let to_bytes=8192				;;
+		K)
+			# KiloByte = 1024
+			let to_bytes=1024				;;
+		m)
+			# Megabit = 8 * 1024 * 1024
+			let to_bytes=8388608			;;
+		M)
+			# MegaByte = 1024 * 1024
+			let to_bytes=1048576			;;
+		g)
+			# Gigabit = 8 * 1024 * 1024 * 1024
+			let to_bytes=8589934592			;;
+		G)
+			# GigaByte = 1024 * 1024 * 1024
+			let to_bytes=1073741824			;;
+		t)
+			# Terabit = 8 * 1024 * 1024 * 1024 * 1024
+			let to_bytes=8796093022208		;;
+		T)
+			# TeraByte = 1024 * 1024 * 1024 * 1024
+			let to_bytes=1099511627776		;;
+		p)
+			# Petabit = 8 * 1024 * 1024 * 1024 * 1024 * 1024
+			let to_bytes=9007199254740992	;;
+		P)
+			# PetaByte = 1024 * 1024 * 1024 * 1024 * 1024
+			let to_bytes=1125899906842624	;;
+		e)
+			# Exabit = 8 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024
+			let to_bytes=1125899906842624*1024*8
+			;;
+		E)
+			# ExaByte = 1024 * 1024 * 1024 * 1024 * 1024 * 1024
+			let to_bytes=1125899906842624*1024
+			;;
+		z)
+			# Zettabit = 8 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024
+			# BROKEN: BASH or BC can't handle numbers this large.
+			let to_bytes=1125899906842624*1024*1024*8
+			;;
+		Z)
+			# ZettaByte = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024
+			# BROKEN: BASH or BC can't handle numbers this large.
+			let to_bytes=1125899906842624*1024*1024
+			;;
+		y)
+			# Yottabit = 8 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024
+			# BROKEN: BASH or BC can't handle numbers this large.
+			let to_bytes=1125899906842624*1024*1024*1024*8
+			;;
+		Y)
+			# YottaByte = 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024
+			# BROKEN: BASH or BC can't handle numbers this large.
+			let to_bytes=1125899906842624*1024*1024*1024
+			;;
+		*)
+			usage
+			exit 0
+			;;
+	esac
+
+	value=$number
 fi
 
 
 case $operator in
 	A) # ADD
 		# new_value=$[value + to_bytes]
-		new_value=$(echo "scale=2; $value + $to_bytes" | bc -q 2>/dev/null)
+		new_value=$(echo "scale=8; $value + $to_bytes" | bc -q 2> /dev/null)
 		;;
 	D) # DIVIDE
 		# new_value=$[value / to_bytes]
-		new_value=$(echo "scale=2; $value / $to_bytes" | bc -q 2>/dev/null)
+		new_value=$(echo "scale=8; $value / $to_bytes" | bc -q 2> /dev/null)
 		;;
 	M) # MULTIPLY
 		# new_value=$[value * to_bytes]
 		set -f # Dissable wildcard expansion
-		new_value=$(echo "scale=2; $value * $to_bytes" | bc -q 2>/dev/null)
+		new_value=$(echo "scale=8; $value * $to_bytes" | bc -q 2> /dev/null)
 		set +f # Enable wildcard expansion
 		;;
 	S) # SUBTRACT
 		# new_value=$[value - to_bytes]
-		new_value=$(echo "scale=2; $value - $to_bytes" | bc -q 2>/dev/null)
+		new_value=$(echo "scale=8; $value - $to_bytes" | bc -q 2> /dev/null)
 		;;
 esac
 
-# decimal=`printf "%'d\n" $new_value`
-float=`printf "%'.2f" $new_value`
-glom=`printf "%'.2g" $new_value`
+declare -i decimal=$(printf "%d\n" $new_value 2> /dev/null)
+declare raw_number=$(printf "%s\n" $new_value 2> /dev/null | sed '/\./ s/\.\{0,1\}0\{1,\}$//')
+declare comma_formated=$(printf "%'.8f" $new_value | sed -e 's/[0]*$//g')
+declare scientific_number=$(printf "%'.8e" $new_value | sed -e 's/[0]*e/e/g')
+# glom=`printf "%'.2g" $new_value`
+
+if [[ "${comma_formated: -1}" = '.' ]]; then
+	comma_formated="${comma_formated:0: -1}"
+fi
 
 # new_value=$((value * to_bytes))
 # new_value=$[value * to_bytes]
@@ -172,9 +250,15 @@ glom=`printf "%'.2g" $new_value`
 # echo "value = $value"
 # echo "output = $output"
 
-echo "$new_value Bytes"
-# echo "$decimal Bytes"
-echo "$float Bytes"
-echo "$glom Bytes"
+if [[ $number_only -eq 1 ]] && [[ $comma_only -eq 1 ]] && [[ $scientific_only -eq 1 ]]; then
+	echo "$raw_number Bytes"
+	echo "$comma_formated Bytes"
+	echo "$scientific_number Bytes"
+fi
+
+# [[ $number_only -eq 0 ]]		&& echo "$new_value Bytes"
+[[ $number_only -eq 0 ]]		&& echo "$raw_number"
+[[ $comma_only -eq 0 ]]			&& echo "$comma_formated"
+[[ $scientific_only -eq 0 ]]	&& echo "$scientific_number"
 
 exit 0
